@@ -74,7 +74,7 @@ object BLEDeviceManager {
                      * communication channel will create if its valid device.
                      */
                     //if (data.mDeviceAddress.contains(Struct.DeviceAddress.ppg1)  || data.mDeviceAddress.contains(Struct.DeviceAddress.thermometer1)) {
-                    if (data.mDeviceName.contains("SP001") || data.mDeviceName.contains("HFS")) {
+                    if (data.mDeviceName.contains(containBleSnName.toString())) {
                         data.mDeviceRssi = result.rssi
                         mDeviceObject = data
                         mOnDeviceScanListener?.onScanCompleted(mDeviceObject!!)
