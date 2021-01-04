@@ -3,7 +3,7 @@ package kr.ahn.ftlab_library_ble
 import android.content.Context
 import android.widget.Toast
 
-class FtlabBle: OnDeviceScanListener {
+open class FtlabBle: OnDeviceScanListener {
 
     var deviceScanList = ArrayList<BleDeviceData>()
 
