@@ -11,7 +11,7 @@ import android.util.Log
 
 object BLEConnectionManager {
     private const val tag = "BLEConnectionManager"
-    private var mOnDeviceBleListener: OnDeviceBleListener? = null
+    private var mOnBleConnectionListener: OnBleConnectionListener? = null
     private var mBLEService: BLEService? = null
     private var isBind = false
     private var mDataBLEForControl: BluetoothGattCharacteristic? = null
@@ -19,9 +19,6 @@ object BLEConnectionManager {
     private var sendCount = 0
     //private var mDataBLEForLog: BluetoothGattCharacteristic? = null
 
-    private var uuidEmergency = ""
-    private var uuidControl = ""
-    private var uuidMeas = ""
     private val mServiceConnection = object : ServiceConnection {
         override fun onServiceConnected(componentName: ComponentName, service: IBinder) {
             Log.e(tag, "onServiceConnected")
@@ -32,7 +29,7 @@ object BLEConnectionManager {
                 Log.e(tag, "Unable to initialize")
             }
             else{
-                mOnDeviceBleListener?.onBleServiceOpen(true)
+                mOnBleConnectionListener?.onBleServiceOpen(true)
             }
         }
         override fun onServiceDisconnected(componentName: ComponentName) {
@@ -41,8 +38,8 @@ object BLEConnectionManager {
         }
     }
 
-    fun setListener(onDeviceScanListener: OnDeviceBleListener) {
-        mOnDeviceBleListener = onDeviceScanListener
+    fun setListener(scanConnectionListenerOn: OnBleConnectionListener) {
+        mOnBleConnectionListener = scanConnectionListenerOn
     }
     /**
      * Initialize Bluetooth service.
@@ -123,6 +120,20 @@ object BLEConnectionManager {
             writeBLECharacteristic(mDataBLEForControl)
         }
     }
+    fun sendOnlyCmd(cmd: Int) {
+        /*if (mDataBLEForControl != null) {
+            mDataBLEForControl!!.value = byteArrayOf(cmd.toByte())
+            writeBLECharacteristic(mDataBLEForControl)
+        }*/
+        Log.e(tag, "send1 : $cmd")
+        val sData = ByteArray(1)
+
+        sData[0] = cmd.toByte()
+        mDataBLEForControl.let{
+            mDataBLEForControl!!.value = sData
+            writeBLECharacteristic(mDataBLEForControl)
+        }
+    }
 
     fun send(inData: ByteArray) {
         /*if (mDataBLEForControl != null) {
@@ -148,19 +159,59 @@ object BLEConnectionManager {
         Log.e(tag, "sendCheckSum: ${checkSum.toByte()}")
     }
 
-    fun send(cmd: Int, size: Int, data: ByteArray) {
-        //if (mDataBLEForControl != null) {
-        mDataBLEForControl.let{
-            val sData = ByteArray(size + 2)
-            var add = 0
-            sData[add++] = cmd.toByte()
-            //sData[add++] = size.toByte()
-            sData[add++] = 0x11
-            for (i in data.indices){
-                sData[add++] = data[i]
-            }
+    fun send(cmd: Int ,cmdFlag: Boolean) {
+        /*if (mDataBLEForControl != null) {
+         mDataBLEForControl!!.value = byteArrayOf(cmd.toByte())
+         writeBLECharacteristic(mDataBLEForControl)
+     }*/
+        var sData = ByteArray(1)
+        sData[0] = cmd.toByte()
+
+        if(cmdFlag){
+            sData = ByteArray(2)
+            val checkSum = 255 - cmd
+
+            sData[0] = cmd.toByte()
+            sData[1] = checkSum.toByte()
+        }
+
+        mDataBLEForControl.let {
+            //mDataBLEForControl!!.value =  byteArrayOf(cmd.toByte())
             mDataBLEForControl!!.value = sData
             writeBLECharacteristic(mDataBLEForControl)
+        }
+    }
+
+    fun send(inData: ByteArray , cmdFlag: Boolean) {
+
+        ///////////////////////////////////////////////////
+        /*if (mDataBLEForControl != null) {
+            mDataBLEForControl!!.value = byteArrayOf(cmd.toByte())
+            writeBLECharacteristic(mDataBLEForControl)
+        }*/
+        Log.e(tag, "send : ByteArray : ${inData[0].toUByte()}")
+        var checkSum = 0
+        if (cmdFlag) {
+            for (element in inData) {
+                checkSum += element
+            }
+            checkSum = 255 - checkSum
+            val sendByte = inData + checkSum.toByte()
+
+            mDataBLEForControl.let{
+
+                mDataBLEForControl!!.value = sendByte
+                // mBluetoothGatt!!.writeCharacteristic(mDataBLEForControl)
+                writeBLECharacteristic(mDataBLEForControl)
+            }
+
+            Log.e(tag, "sendCheckSum: ${checkSum.toByte()}")
+        }else {
+
+            mDataBLEForControl.let {
+                mDataBLEForControl!!.value = inData
+                writeBLECharacteristic(mDataBLEForControl)
+            }
         }
     }
 
@@ -203,14 +254,14 @@ object BLEConnectionManager {
 
             for (gattService in serviceList) {
                 //if (gattService.getUuid().toString().equals(mContext.getString(R.string.char_uuid_emergency), ignoreCase = true)) {
-                if (gattService.uuid.toString().equals(uuidEmergency, ignoreCase = true)) {
+                if (gattService.uuid.toString().equals(FtlabBleStruct.uuidEmergency, ignoreCase = true)) {
                     val gattCharacteristics = gattService.characteristics
 
                     for (gattCharacteristic in gattCharacteristics) {
                         uuid = if (gattCharacteristic.uuid != null) gattCharacteristic.uuid.toString() else ""
 
                         when(uuid){
-                            uuidControl -> {
+                            FtlabBleStruct.uuidControl -> {
                                 var newChar = gattCharacteristic
                                 newChar = setProperties(0, newChar)
                                mDataBLEForControl = newChar
@@ -218,7 +269,7 @@ object BLEConnectionManager {
                             }
 
                             //mContext.resources.getString(R.string.char_uuid_mes) -> {
-                            uuidMeas -> {
+                            FtlabBleStruct.uuidMeas -> {
                                 var newChar = gattCharacteristic
                                 newChar = setProperties(1, newChar)
                                 mDataBLEForMeas = newChar
@@ -260,7 +311,7 @@ object BLEConnectionManager {
             }
 
             Log.e(tag, "findBLEGattService flagResult= $flagResult")
-            mOnDeviceBleListener?.onBleConnectionCompleted(flagResult)
+            mOnBleConnectionListener?.onBleConnectionCompleted(flagResult)
         }
 
     }
