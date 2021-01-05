@@ -147,7 +147,7 @@ object BLEDeviceManager {
      * setListener
      */
 
-    fun setListener(onDeviceScanListener: FtlabBle) {
+    fun setListener(onDeviceScanListener: OnDeviceScanListener) {
 
         mOnDeviceScanListener = onDeviceScanListener
     }
